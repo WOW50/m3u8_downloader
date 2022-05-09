@@ -1,4 +1,4 @@
-#import "M3u8DownloaderPlugin.h"
+#import "M3U8DownloaderPlugin.h"
 #if __has_include(<m3u8_downloader/m3u8_downloader-Swift.h>)
 #import <m3u8_downloader/m3u8_downloader-Swift.h>
 #else
@@ -8,7 +8,7 @@
 #import "m3u8_downloader-Swift.h"
 #endif
 
-@implementation M3u8DownloaderPlugin
+@implementation M3U8DownloaderPlugin
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   [SwiftM3u8DownloaderPlugin registerWithRegistrar:registrar];
 }
