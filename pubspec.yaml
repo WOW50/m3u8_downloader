@@ -31,7 +31,7 @@ flutter:
         package: com.vincent.m3u8Downloader
         pluginClass: M3U8DownloaderPlugin
       ios:
-        pluginClass: M3U8DownloaderPlugin
+        pluginClass: M3u8DownloaderPlugin
 
   # To add assets to your plugin package, add an assets section, like this:
   # assets:
