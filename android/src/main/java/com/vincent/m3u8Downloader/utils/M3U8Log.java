@@ -12,13 +12,13 @@ import com.vincent.m3u8Downloader.downloader.M3U8DownloadConfig;
 public class M3U8Log {
     private static final boolean isDebugMode = M3U8DownloadConfig.isDebugMode();
     private static final String TAG = "M3U8Log";
-    private static final String PREFIX = "====== ";
+    private static final String PREFIX = "M3U8Log cache error:====== ";
 
-    public static void d(String msg){
-        if (isDebugMode) Log.d(TAG, PREFIX + msg);
+    public static void d(String msg) {
+        if (isDebugMode) Log.d(TAG, TAG + msg);
     }
 
-    public static void e(String msg){
+    public static void e(String msg) {
         if (isDebugMode) Log.e(TAG, PREFIX + msg);
     }
 }

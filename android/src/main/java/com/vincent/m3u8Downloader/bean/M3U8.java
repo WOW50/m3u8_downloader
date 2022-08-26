@@ -14,6 +14,9 @@ public class M3U8 {
     private String localPath;
     private String key;
     private String iv;
+    public  String methodCode;
+    public String methodKeyURL;
+    public int localTSFileCount = 0;
 
     private List<M3U8Ts> tsList = new ArrayList<>();
 

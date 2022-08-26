@@ -150,7 +150,17 @@ public class EncryptUtil {
         if (TextUtils.isEmpty(key)) {
             return bytes;
         }
+        if(key.length() != 16){
+            String utf8Key = key.getBytes(ENCODING).toString();
+            M3U8Log.e("key 长度不是16位--" + key.length() + "--" + utf8Key + "--" + utf8Key.length());
+            if (utf8Key.length() == 16) {
+                key = utf8Key;
+            }else {
+               // return  bytes;
+            }
+        }
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS7Padding");
+
         byte[] ivByte = new byte[16];
         if (!TextUtils.isEmpty(iv)) {
             if (iv.startsWith("0x"))
@@ -166,4 +176,5 @@ public class EncryptUtil {
         cipher.init(Cipher.DECRYPT_MODE, keySpec, paramSpec);
         return cipher.doFinal(bytes);
     }
+
 }

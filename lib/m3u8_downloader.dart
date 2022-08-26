@@ -10,10 +10,17 @@ typedef SelectNotificationCallback = Future<dynamic> Function();
 
 
 class M3u8Downloader {
-  static const MethodChannel _channel = const MethodChannel('vincent/m3u8_downloader', JSONMethodCodec());
-  static _GetCallbackHandle _getCallbackHandle = (Function callback) => PluginUtilities.getCallbackHandle(callback);
+  static const MethodChannel _channel = const MethodChannel(
+      'm3u8_downloader', JSONMethodCodec());
+  static _GetCallbackHandle _getCallbackHandle = (Function callback) =>
+      PluginUtilities.getCallbackHandle(callback);
   static SelectNotificationCallback? _onSelectNotification;
   static bool _initialized = false;
+
+
+  static bool get isInitialized {
+    return _initialized;
+  }
 
 
   ///  初始化下载器
@@ -44,9 +51,9 @@ class M3u8Downloader {
       }
     });
 
-    final bool? r = await _channel.invokeMethod<bool>('initialize',{
+    final bool? r = await _channel.invokeMethod<bool?>('initialize', {
       "handle": handle.toRawHandle(),
-    });
+    }) ?? false;
     _initialized = r ?? false;
     return _initialized;
   }
@@ -67,9 +74,13 @@ class M3u8Downloader {
     int? connTimeout,
     int? readTimeout,
     int? threadCount,
-    bool? debugMode,
+    bool? debugMode = true,
+    Function? progressCallback,
+    Function? successCallback,
+    Function? errorCallback,
   }) async {
-    final bool? r = await _channel.invokeMethod<bool>('config',{
+
+    Map<String, dynamic> params = {
       "saveDir": saveDir,
       "showNotification": showNotification,
       "convertMp4": convertMp4,
@@ -77,7 +88,27 @@ class M3u8Downloader {
       "readTimeout": readTimeout,
       "threadCount": threadCount,
       "debugMode": debugMode,
-    });
+    };
+    if (progressCallback != null) {
+      final CallbackHandle? handle = _getCallbackHandle(progressCallback);
+      if (handle != null) {
+        params["progressCallback"] = handle.toRawHandle();
+      }
+    }
+    if (successCallback != null) {
+      final CallbackHandle? handle = _getCallbackHandle(successCallback);
+      if (handle != null) {
+        params["successCallback"] = handle.toRawHandle();
+      }
+    }
+    if (errorCallback != null) {
+      final CallbackHandle? handle = _getCallbackHandle(errorCallback);
+      if (handle != null) {
+        params["errorCallback"] = handle.toRawHandle();
+      }
+    }
+    
+    final bool? r = await _channel.invokeMethod<bool>('config', params);
     return r ?? false;
   }
 
@@ -88,7 +119,7 @@ class M3u8Downloader {
   /// - [progressCallback] 下载进度回调
   /// - [successCallback] 下载成功回调
   /// - [errorCallback] 下载失败回调
-  static void download({
+  static Future<dynamic> download({
     required String url,
     required String name,
     Function? progressCallback,
@@ -121,19 +152,57 @@ class M3u8Downloader {
       }
     }
 
-    await _channel.invokeMethod("download", params);
+    return await _channel.invokeMethod("download", params);
   }
 
+  /// 查询任务
+  /// 
+  /// - [url] 下载链接地址
+  static Future<dynamic> searchInfo(String url,{
+      Function? progressCallback,
+      Function? successCallback,
+      Function? errorCallback,}) async {
+    assert(url.isNotEmpty);
+    assert(_initialized, 'M3u8Downloader.initialize() must be called first!');
+
+    Map<String, dynamic> params = {
+      "url": url,
+    };
+    if (progressCallback != null) {
+      final CallbackHandle? handle = _getCallbackHandle(progressCallback);
+      if (handle != null) {
+        params["progressCallback"] = handle.toRawHandle();
+      }
+    }
+    if (successCallback != null) {
+      final CallbackHandle? handle = _getCallbackHandle(successCallback);
+      if (handle != null) {
+        params["successCallback"] = handle.toRawHandle();
+      }
+    }
+    if (errorCallback != null) {
+      final CallbackHandle? handle = _getCallbackHandle(errorCallback);
+      if (handle != null) {
+        params["errorCallback"] = handle.toRawHandle();
+      }
+    }
+    
+    return await _channel.invokeMethod("searchInfo", params) ?? null;
+  }
+  
   /// 暂停下载
   /// 
   /// - [url] 暂停指定的链接地址
-  static void pause(String url) async {
+  static dynamic pause(String url) async {
     assert(_initialized, 'M3u8Downloader.initialize() must be called first!');
-    await _channel.invokeMethod("pause", {
+    return await _channel.invokeMethod("pause", {
       "url": url
     });
   }
-
+  static void pauseAll() async {
+    assert(_initialized, 'M3u8Downloader.initialize() must be called first!');
+    await _channel.invokeMethod("pauseAll", {});
+  }
   /// 删除下载
   /// 
   /// - [url] 下载链接地址
@@ -145,7 +214,11 @@ class M3u8Downloader {
       "url": url
     }) ?? false;
   }
+  static Future<bool> deleteAll() async {
+    assert(_initialized, 'M3u8Downloader.initialize() must be called first!');
 
+    return await _channel.invokeMethod("deleteAll",{}) ?? false;
+  }
   /// 下载状态
   static Future<bool> isRunning() async {
     assert(_initialized, 'M3u8Downloader.initialize() must be called first!');
@@ -159,6 +232,6 @@ class M3u8Downloader {
   /// m3u8 - m3u8文件地址
   /// mp4 - mp4存储位置
   static Future<dynamic> getSavePath(String url) async {
-    return await _channel.invokeMethod("getSavePath", { "url": url });
+    return await _channel.invokeMethod("getSavePath", { "url": url});
   }
 }

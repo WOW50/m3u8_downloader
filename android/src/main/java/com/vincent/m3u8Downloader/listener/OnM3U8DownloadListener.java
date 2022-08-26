@@ -1,6 +1,7 @@
 package com.vincent.m3u8Downloader.listener;
 
 import com.vincent.m3u8Downloader.bean.M3U8Task;
+import com.vincent.m3u8Downloader.downloader.M3U8DownloadTask;
 
 /**
  * @Author: Vincent
@@ -26,7 +27,7 @@ public interface OnM3U8DownloadListener {
      * 异步回调，不可以直接在UI线程调用
      * @param task 当前下载任务
      */
-    void onDownloadProgress(M3U8Task task);
+    void onDownloadProgress(M3U8DownloadTask task);
 
     /**
      * 完成一次下载任务
@@ -40,7 +41,7 @@ public interface OnM3U8DownloadListener {
     /**
      * 下载成功
      */
-    void onDownloadSuccess(M3U8Task task);
+    void onDownloadSuccess(M3U8DownloadTask task);
 
     /**
      * 暂停下载
@@ -55,10 +56,10 @@ public interface OnM3U8DownloadListener {
 
     /**
      * 下载失败
-     * @param task 失败的任务
+     * @param url 失败的任务
      * @param error 错误信息
      */
-    void onDownloadError(M3U8Task task, Throwable error);
+    void onDownloadError(String url, final Throwable error);
 
     /**
      * 停止下载

@@ -10,4 +10,5 @@ import com.vincent.m3u8Downloader.bean.M3U8;
 public interface OnInfoCallback {
 
     void success(M3U8 m3u8);
+    void error(Exception e);
 }

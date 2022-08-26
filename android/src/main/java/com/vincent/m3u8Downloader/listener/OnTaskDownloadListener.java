@@ -1,6 +1,7 @@
 package com.vincent.m3u8Downloader.listener;
 
 import com.vincent.m3u8Downloader.bean.M3U8;
+import com.vincent.m3u8Downloader.downloader.M3U8DownloadTask;
 
 /**
  * @Author: Vincent
@@ -32,9 +33,9 @@ public interface OnTaskDownloadListener {
 
     /**
      * 定时进度
-     * @param curLength 下载大小
+     * @param task
      */
-    void onProgress(long curLength);
+    void onProgress(M3U8DownloadTask task);
 
     /**
      * 正在转成MP4格式

@@ -1,9 +1,12 @@
 package com.vincent.m3u8Downloader.bean;
 
+import android.util.Log;
+
 import com.vincent.m3u8Downloader.utils.EncryptUtil;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+
 
 /**
  * @Author: Vincent
@@ -73,8 +76,8 @@ public class M3U8Ts implements Comparable<M3U8Ts>  {
      */
     public String obtainEncodeTsFileName(){
         if (url == null) return "error.ts";
-
-        return EncryptUtil.md5Encode(url).concat(".ts");
+        String fileName = EncryptUtil.md5Encode(url).concat(".ts");
+        return  fileName;
     }
 
     /**

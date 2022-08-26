@@ -2,6 +2,7 @@ import Flutter
 import UIKit
 
 public class SwiftM3u8DownloaderPlugin: NSObject, FlutterPlugin {
+    
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "m3u8_downloader", binaryMessenger: registrar.messenger())
     let instance = SwiftM3u8DownloaderPlugin()
@@ -9,6 +10,15 @@ public class SwiftM3u8DownloaderPlugin: NSObject, FlutterPlugin {
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+      print("iOS--method:\(call.method)")
     result("iOS " + UIDevice.current.systemVersion)
   }
+ 
+
+    
+    public func getSavePath(path:String) -> String{
+        
+        return "ios-----";
+    }
+    
 }

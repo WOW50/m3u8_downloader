@@ -1,7 +1,6 @@
 package com.vincent.m3u8Downloader.utils;
 
 import android.annotation.SuppressLint;
-
 import com.vincent.m3u8Downloader.downloader.M3U8DownloadConfig;
 import com.vincent.m3u8Downloader.bean.M3U8;
 import com.vincent.m3u8Downloader.bean.M3U8Ts;
@@ -9,8 +8,7 @@ import com.vincent.m3u8Downloader.bean.M3U8Ts;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -29,16 +27,34 @@ public class M3U8Util {
      * @return M3U8对象
      * @throws IOException IO异常
      */
-    public static M3U8 parseIndex(String url) throws IOException {
-        URL baseUrl = new URL(url);
-        BufferedReader reader = new BufferedReader(new InputStreamReader(baseUrl.openStream()));
-
+    public static M3U8 parseIndex(String url, String filePath) throws IOException {
         M3U8 ret = new M3U8();
-        ret.setBaseUrl(url);
+        URL baseUrl = new URL(url);
+        File remoteFile = new File(filePath);
+        BufferedReader reader;
+        Boolean fromLocalFile = false;
+        if (remoteFile.exists() && remoteFile.length() > 100) {
+            File dir = new File(remoteFile.getParent());
+            if (dir.isDirectory()) {
+                int count = dir.listFiles().length - 1;
+                if (count > 0){
+                    ret.localTSFileCount = count;
+                }
+            }
+            fromLocalFile = true;
+            reader = new BufferedReader(new FileReader(filePath));
+        }else {
+            reader = new BufferedReader(new InputStreamReader(baseUrl.openStream()));
+        }
 
+        ret.setBaseUrl(url);
+        StringBuilder strBuilder = new StringBuilder();
         String line;
         float seconds = 0;
         while ((line = reader.readLine()) != null) {
+            if (!fromLocalFile) {
+                strBuilder.append(line + "\n");
+            }
             if (line.startsWith("#")) {
                 if (line.startsWith("#EXTINF:")) {
                     line = line.substring(8);
@@ -47,7 +63,8 @@ public class M3U8Util {
                     }
                     seconds = Float.parseFloat(line);
                 } else if (line.startsWith("#EXT-X-KEY:")) {
-                    line = line.split("#EXT-X-KEY:")[1];
+                    String[] lineInfoArr = line.split("#EXT-X-KEY:");
+                    line = lineInfoArr[1];
                     String[] arr = line.split(",");
                     for (String s : arr) {
                         if (s.contains("=")) {
@@ -57,13 +74,19 @@ public class M3U8Util {
                                 // 获取key
                                 v = v.replaceAll("\"", "");
                                 v = v.replaceAll("'", "");
-                                BufferedReader keyReader = new BufferedReader(new InputStreamReader(new URL(baseUrl, v).openStream()));
-                                ret.setKey(keyReader.readLine());
-                                M3U8Log.d("m3u8 key: " + ret.getKey());
+                                ret.methodKeyURL = v;
+//                                if(Thread.currentThread() != Looper.getMainLooper().getThread()){
+//                                    // 只有查询信息才走主线程, key 本地化
+//                                    BufferedReader keyReader = new BufferedReader(new InputStreamReader(new URL(baseUrl, v).openStream()));
+//                                    ret.setKey(keyReader.readLine());
+//                                    M3U8Log.d("m3u8 key: " + ret.getKey());
+//                                }
                             } else if (k.equals("IV")) {
                                 // 获取IV
                                 ret.setIv(v);
                                 M3U8Log.d("m3u8 IV: " + v);
+                            }else if(k.equals("METHOD")){
+                                ret.methodCode = v;
                             }
                         }
                     }
@@ -71,16 +94,53 @@ public class M3U8Util {
                 continue;
             }
             if (line.endsWith("m3u8")) {
-                return parseIndex(new URL(baseUrl, line).toString());
+                return parseIndex(new URL(baseUrl, line).toString(), filePath + "sub.m3u8");
             }
             ret.addTs(new M3U8Ts(line, seconds));
             seconds = 0;
         }
         reader.close();
-
+        if(!fromLocalFile) {
+            BufferedWriter bfw = new BufferedWriter(new FileWriter(filePath, false));
+            bfw.write(strBuilder.toString());
+            bfw.close();
+        }
         return ret;
     }
 
+    /**
+     * 生成AES-128加密本地m3u8索引文件，ts切片和m3u8文件放在相同目录下即可
+     * @param m3U8 m3u8文件
+     * @param keyPath 加密key
+     */
+    public static void createLocalM3U8(String fileName, M3U8 m3U8, String keyPath, String iv) throws IOException{
+        M3U8Log.d("createLocalM3U8: " + fileName);
+        String basePath = M3U8Util.getSaveFileDir(m3U8.getBaseUrl());
+        BufferedWriter bfw = new BufferedWriter(new FileWriter(fileName, false));
+        bfw.write("#EXTM3U\n");
+        bfw.write("#EXT-X-VERSION:3\n");
+        bfw.write("#EXT-X-MEDIA-SEQUENCE:0\n");
+        bfw.write("#EXT-X-TARGETDURATION:13\n");
+        if (keyPath != null) {
+            String keyContent = "#EXT-X-KEY:METHOD=" + m3U8.methodCode + ",URI=" ;
+           // keyContent = keyContent  + basePath + "/" + keyPath + "\"";
+            keyContent = keyContent + "\"" + m3U8.methodKeyURL + "\"";
+            if(iv != null){
+                keyContent = keyContent + "," + "IV=" + iv;
+            }
+            keyContent = keyContent + "\n";
+            bfw.write(keyContent);
+        }
+        for (M3U8Ts m3U8Ts : m3U8.getTsList()) {
+            bfw.write("#EXTINF:" + m3U8Ts.getSeconds()+",\n");
+            bfw.write( "file://" + basePath + "/" + m3U8Ts.obtainEncodeTsFileName());
+           // M3U8Log.d("file://" + basePath + "/" + m3U8Ts.obtainEncodeTsFileName());
+            bfw.newLine();
+        }
+        bfw.write("#EXT-X-ENDLIST");
+        bfw.flush();
+        bfw.close();
+    }
 
     /**
      * 清空文件夹
@@ -134,61 +194,9 @@ public class M3U8Util {
      * @param m3U8 m3u8文件
      */
     public static void createLocalM3U8(String fileName, M3U8 m3U8) throws IOException{
-        createLocalM3U8(fileName, m3U8, null);
+        createLocalM3U8(fileName, m3U8, null, null);
     }
 
-    /**
-     * 生成AES-128加密本地m3u8索引文件，ts切片和m3u8文件放在相同目录下即可
-     * @param m3U8 m3u8文件
-     * @param keyPath 加密key
-     */
-    public static void createLocalM3U8(String fileName, M3U8 m3U8, String keyPath) throws IOException{
-        M3U8Log.d("createLocalM3U8: " + fileName);
-        BufferedWriter bfw = new BufferedWriter(new FileWriter(fileName, false));
-        bfw.write("#EXTM3U\n");
-        bfw.write("#EXT-X-VERSION:3\n");
-        bfw.write("#EXT-X-MEDIA-SEQUENCE:0\n");
-        bfw.write("#EXT-X-TARGETDURATION:13\n");
-        if (keyPath != null) bfw.write("#EXT-X-KEY:METHOD=AES-128,URI=\""+keyPath+"\"\n");
-        for (M3U8Ts m3U8Ts : m3U8.getTsList()) {
-            bfw.write("#EXTINF:" + m3U8Ts.getSeconds()+",\n");
-            bfw.write(m3U8Ts.obtainEncodeTsFileName());
-            bfw.newLine();
-        }
-        bfw.write("#EXT-X-ENDLIST");
-        bfw.flush();
-        bfw.close();
-    }
-
-    /**
-     * 获取文件流
-     * @param fileName 文件名
-     * @return 文件字节数组
-     * @throws IOException IO异常
-     */
-    public static byte[] readFile(String fileName) throws IOException{
-        File file = new File(fileName);
-        FileInputStream fis = new FileInputStream(file);
-        int length = fis.available();
-        byte[] buffer = new byte[length];
-        fis.read(buffer);
-        fis.close();
-        return buffer;
-    }
-
-    /**
-     * 保存文件
-     * @param bytes 字节数组
-     * @param fileName 文件名
-     * @throws IOException IO异常
-     */
-    public static void saveFile(byte[] bytes, String fileName) throws IOException{
-        File file = new File(fileName);
-        FileOutputStream outputStream = new FileOutputStream(file);
-        outputStream.write(bytes);
-        outputStream.flush();
-        outputStream.close();
-    }
 
     /**
      * 保存文件
@@ -212,4 +220,12 @@ public class M3U8Util {
     public static String getSaveFileDir(String url){
         return M3U8DownloadConfig.getSaveDir() + File.separator + EncryptUtil.md5Encode(url);
     }
+    public static String getSaveFileDirTmp(String url){
+        return M3U8DownloadConfig.getSaveDir() + File.separator + EncryptUtil.md5Encode(url) + "_tmp";
+    }
+
+    public static String getSaveDir(){
+        return M3U8DownloadConfig.getSaveDir();
+    }
+
 }

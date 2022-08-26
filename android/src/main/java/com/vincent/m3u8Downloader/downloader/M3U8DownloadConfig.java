@@ -89,7 +89,4 @@ public class M3U8DownloadConfig {
         return this;
     }
 
-    public static boolean isConvertMp4(){
-        return SpHelper.getBoolean(TAG_CONVERT_MP4, false);
-    }
 }

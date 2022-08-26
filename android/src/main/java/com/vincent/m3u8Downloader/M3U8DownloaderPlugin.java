@@ -10,6 +10,7 @@ import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 
+import com.vincent.m3u8Downloader.bean.M3U8;
 import com.vincent.m3u8Downloader.bean.M3U8Task;
 import com.vincent.m3u8Downloader.bean.M3U8TaskState;
 import com.vincent.m3u8Downloader.downloader.M3U8DownloadConfig;
@@ -39,7 +40,7 @@ import io.flutter.plugin.common.PluginRegistry;
 
 /** M3U8DownloaderPlugin */
 public class M3U8DownloaderPlugin implements FlutterPlugin, MethodCallHandler, PluginRegistry.NewIntentListener, ActivityAware {
-  private static final String CHANNEL_NAME = "vincent/m3u8_downloader";
+  private static final String CHANNEL_NAME = "m3u8_downloader";
 
   private MethodChannel channel;
   private Context context;
@@ -80,41 +81,47 @@ public class M3U8DownloaderPlugin implements FlutterPlugin, MethodCallHandler, P
         long callbackHandle = call.argument("handle");
         FlutterBackgroundExecutor.setCallbackDispatcher(context, callbackHandle);
         backgroundExecutor.startBackgroundIsolate(context);
-
         result.success(true);
         break;
       case "config":
-        M3U8DownloadConfig config = M3U8DownloadConfig.build(context);
-        if (call.hasArgument("saveDir") && call.argument("saveDir") != JSONObject.NULL) {
-          String saveDir = call.argument("saveDir");
-          config.setSaveDir(saveDir);
+        try {
+          M3U8DownloadConfig config = M3U8DownloadConfig.build(context);
+          if (call.hasArgument("saveDir") && call.argument("saveDir") != JSONObject.NULL) {
+            String saveDir = call.argument("saveDir");
+            config.setSaveDir(saveDir);
+          }
+          if (call.hasArgument("showNotification") && call.argument("showNotification") != JSONObject.NULL) {
+            boolean show = call.argument("showNotification");
+            showNotification = show;
+            config.setShowNotification(show);
+          }
+          if (call.hasArgument("connTimeout") && call.argument("connTimeout") != JSONObject.NULL) {
+            int connTimeout = call.argument("connTimeout");
+            config.setConnTimeout(connTimeout);
+          }
+          if (call.hasArgument("readTimeout") && call.argument("readTimeout") != JSONObject.NULL) {
+            int readTimeout = call.argument("readTimeout");
+            config.setReadTimeout(readTimeout);
+          }
+          if (call.hasArgument("threadCount") && call.argument("threadCount") != JSONObject.NULL) {
+            int threadCount = call.argument("threadCount");
+            config.setThreadCount(threadCount);
+          }
+          if (call.hasArgument("debugMode") && call.argument("debugMode") != JSONObject.NULL) {
+            boolean debugMode = call.argument("debugMode");
+            config.setDebugMode(debugMode);
+          }
+          if (call.hasArgument("convertMp4") && call.argument("convertMp4") != JSONObject.NULL) {
+            boolean convertMp4 = call.argument("convertMp4");
+            config.setConvertMp4(convertMp4);
+          }
+          progressCallbackHandle = call.hasArgument("progressCallback") && call.argument("progressCallback") != JSONObject.NULL ? (long) call.argument("progressCallback") : -1;
+          successCallbackHandle = call.hasArgument("successCallback") && call.argument("successCallback") != JSONObject.NULL ? (long) call.argument("successCallback") : -1;
+          errorCallbackHandle = call.hasArgument("errorCallback") && call.argument("errorCallback") != JSONObject.NULL ? (long) call.argument("errorCallback") : -1;
+          result.success(true);
+        }catch (Error e){
+          result.success(false);
         }
-        if (call.hasArgument("showNotification") && call.argument("showNotification") != JSONObject.NULL) {
-          boolean show = call.argument("showNotification");
-          showNotification = show;
-          config.setShowNotification(show);
-        }
-        if (call.hasArgument("connTimeout") && call.argument("connTimeout") != JSONObject.NULL) {
-          int connTimeout = call.argument("connTimeout");
-          config.setConnTimeout(connTimeout);
-        }
-        if (call.hasArgument("readTimeout") && call.argument("readTimeout") != JSONObject.NULL) {
-          int readTimeout = call.argument("readTimeout");
-          config.setReadTimeout(readTimeout);
-        }
-        if (call.hasArgument("threadCount") && call.argument("threadCount") != JSONObject.NULL) {
-          int threadCount = call.argument("threadCount");
-          config.setThreadCount(threadCount);
-        }
-        if (call.hasArgument("debugMode") && call.argument("debugMode") != JSONObject.NULL) {
-          boolean debugMode = call.argument("debugMode");
-          config.setDebugMode(debugMode);
-        }
-        if (call.hasArgument("convertMp4") && call.argument("convertMp4") != JSONObject.NULL) {
-          boolean convertMp4 = call.argument("convertMp4");
-          config.setConvertMp4(convertMp4);
-        }
-        result.success(true);
         break;
       case "download":
         if (!call.hasArgument("url")) {
@@ -127,20 +134,46 @@ public class M3U8DownloaderPlugin implements FlutterPlugin, MethodCallHandler, P
         }
         showNotification = M3U8DownloadConfig.isShowNotification();
         String url = call.argument("url");
+        if(M3U8Downloader.getInstance().isFinished(url)){
+
+          result.success("已下载完成了");
+          return;
+        }
+        String currentTaskUrl = null;
+        if(M3U8Downloader.getInstance().m3U8DownLoadTask != null){
+          currentTaskUrl =  M3U8Downloader.getInstance().m3U8DownLoadTask.m3u8Url;
+        }
+        if(currentTaskUrl != null
+                && currentTaskUrl.equals(url)
+                && M3U8Downloader.getInstance().m3U8DownLoadTask.isRunning()){
+          result.success("正在执行");
+          return;
+        }
         fileName = call.argument("name");
         NotificationUtil.getInstance().cancel();
         if (showNotification) {
           NotificationUtil.getInstance().build(context);
         }
-        progressCallbackHandle = call.hasArgument("progressCallback") && call.argument("progressCallback") != JSONObject.NULL ? (long)call.argument("progressCallback") : -1;
-        successCallbackHandle = call.hasArgument("successCallback") && call.argument("successCallback") != JSONObject.NULL ? (long)call.argument("successCallback") : -1;
-        errorCallbackHandle = call.hasArgument("errorCallback") && call.argument("errorCallback") != JSONObject.NULL ? (long)call.argument("errorCallback") : -1;
 
-        M3U8Downloader.getInstance().download(url);
         M3U8Downloader.getInstance().setOnM3U8DownloadListener(mDownloadListener);
+        M3U8Downloader.getInstance().download(url);
+
         result.success(null);
         break;
+      case "searchInfo":
+        if (!call.hasArgument("url")) {
+          result.error("1", "url必传", "");
+          return;
+        }
+
+        String movieUrl = call.argument("url");
+        Map infoMap = M3U8Downloader.getInstance().searchTaskInfo(movieUrl);
+        result.success(infoMap);
+        break;
       case "pause":
+        progressCallbackHandle = -1;
+        successCallbackHandle = -1;
+        errorCallbackHandle = -1;
         if (!call.hasArgument("url")) {
           result.error("1", "url必传", "");
           return;
@@ -148,6 +181,13 @@ public class M3U8DownloaderPlugin implements FlutterPlugin, MethodCallHandler, P
         String pauseUrl = call.argument("url");
 
         M3U8Downloader.getInstance().pause(pauseUrl);
+        result.success(null);
+        break;
+      case "pauseAll":
+        progressCallbackHandle = -1;
+        successCallbackHandle = -1;
+        errorCallbackHandle = -1;
+        M3U8Downloader.getInstance().pauseAll();
         result.success(null);
         break;
       case "delete":
@@ -164,6 +204,15 @@ public class M3U8DownloaderPlugin implements FlutterPlugin, MethodCallHandler, P
           }
         });
         break;
+      case "deleteAll":
+        handler.post(new Runnable() {
+          @Override
+          public void run() {
+            boolean flag = M3U8Downloader.getInstance().deleteAll();
+            result.success(flag);
+          }
+        });
+        break;
       case "isRunning":
         result.success(M3U8Downloader.getInstance().isRunning());
         break;
@@ -175,10 +224,11 @@ public class M3U8DownloaderPlugin implements FlutterPlugin, MethodCallHandler, P
         String saveUrl = call.argument("url");
         Map<String, String> res = new HashMap<>();
         res.put("baseDir", M3U8Util.getSaveFileDir(saveUrl));
+        res.put("baseDirTmp", M3U8Util.getSaveFileDirTmp(saveUrl));
         res.put("m3u8", M3U8DownloadTask.getM3U8Path(saveUrl));
-        res.put("mp4", M3U8DownloadTask.getMp4Path(saveUrl));
         result.success(res);
         break;
+
       default:
         result.notImplemented();
         break;
@@ -206,20 +256,12 @@ public class M3U8DownloaderPlugin implements FlutterPlugin, MethodCallHandler, P
     }
 
     @Override
-    public void onDownloadProgress(M3U8Task task) {
-      if (showNotification) {
-        NotificationUtil.getInstance().updateNotification(fileName, M3U8TaskState.DOWNLOADING, Math.round(task.getProgress() * 100));
-      }
+    public void onDownloadProgress(M3U8DownloadTask task) {
+
       if (progressCallbackHandle != -1) {
         final Map<String, Object> args = new HashMap<>();
-        args.put("url", task.getUrl());
-        args.put("state", task.getState());
-        args.put("progress", task.getProgress());
-        args.put("speed", task.getSpeed());
-        args.put("formatSpeed", task.getFormatSpeed());
-        args.put("totalSize", task.getTotalSize());
-        args.put("currentFormatSize", task.getFormatCurrentSize());
-        args.put("totalFormatSize", task.getFormatTotalSize());
+        args.put("url", task.m3u8Url);
+        args.put("progress", task.progress());
         handler.post(new Runnable() {
           @Override
           public void run() {
@@ -234,24 +276,17 @@ public class M3U8DownloaderPlugin implements FlutterPlugin, MethodCallHandler, P
     }
 
     @Override
-    public void onDownloadSuccess(M3U8Task task) {
-      if (showNotification) {
+    public void onDownloadSuccess(M3U8DownloadTask task) {
+;      if (showNotification) {
         NotificationUtil.getInstance().updateNotification(fileName, M3U8TaskState.SUCCESS, 100);
       }
-      String saveDir = M3U8Util.getSaveFileDir(task.getUrl());
-      String filePath;
-      if (task.getM3U8() != null) {
-        filePath = task.getM3U8().getLocalPath();
-      } else {
-        File mp4File = new File(M3U8DownloadTask.getMp4Path(task.getUrl()));
-        if (mp4File.exists()) {
-          filePath = mp4File.getPath();
-        } else {
-          filePath = M3U8DownloadTask.getMp4Path(task.getUrl());
-        }
+      String saveDir = M3U8Util.getSaveFileDir(task.m3u8Url);
+      String filePath = "";
+      if (task.m3u8Url != null) {
+        filePath = task.currentM3U8.getLocalPath();
       }
       final Map<String, Object> args = new HashMap<>();
-      args.put("url", task.getUrl());
+      args.put("url", task.m3u8Url);
       args.put("dir", saveDir);
       args.put("filePath", filePath);
 
@@ -288,13 +323,16 @@ public class M3U8DownloaderPlugin implements FlutterPlugin, MethodCallHandler, P
     }
 
     @Override
-    public void onDownloadError(M3U8Task task, Throwable error) {
-      if (showNotification) {
-        NotificationUtil.getInstance().updateNotification(fileName, task.getState(), Math.round(task.getProgress() * 100));
-      }
+    public void onDownloadError(String url, Throwable error) {
+
       if (errorCallbackHandle != -1) {
         final Map<String, Object> args = new HashMap<>();
-        args.put("url", task.getUrl());
+        args.put("url", url);
+        if(error != null) {
+          args.put("error", error.getMessage());
+        }else {
+          args.put("error", "no reason");
+        }
         handler.post(new Runnable() {
           @Override
           public void run() {
